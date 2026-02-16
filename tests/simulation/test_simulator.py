@@ -13,6 +13,7 @@ Simulator should:
 """
 
 import pytest
+from pathlib import Path
 from agents.base import Agent
 from agents.random_agent import RandomAgent
 from simulation.observation import Observation
@@ -496,6 +497,10 @@ class TestSimulatorCustomDecks:
         result = sim.run_games(a1, a2, num_games=2)
         assert result.total_games == 2
 
+    @pytest.mark.skipif(
+        not Path("hearthstone/data/cards_collectible.json").exists(),
+        reason="cards_collectible.json not available (gitignored data file)",
+    )
     def test_registry_pool_works(self):
         """Can use a registry-derived pool for custom decks."""
         from simulation.simulator import Simulator

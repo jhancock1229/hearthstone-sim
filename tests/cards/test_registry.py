@@ -15,6 +15,11 @@ from hearthstone.cards.registry import CardRegistry
 from hearthstone.cards.base import Card, MinionCard, SpellCard, WeaponCard, HeroCard, LocationCard
 from hearthstone.enums import CardType, CardClass, Rarity
 
+_CARDS_JSON = Path(__file__).parent.parent.parent / "hearthstone" / "data" / "cards_collectible.json"
+_SKIP_REASON = "cards_collectible.json not available (gitignored data file)"
+
+pytestmark = pytest.mark.skipif(not _CARDS_JSON.exists(), reason=_SKIP_REASON)
+
 
 class TestRegistryLoading:
     """The registry loads all collectible cards from the JSON file."""

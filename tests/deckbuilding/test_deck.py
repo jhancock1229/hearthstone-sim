@@ -13,6 +13,7 @@ Deck should:
 """
 
 import pytest
+from pathlib import Path
 from hearthstone.cards.base import MinionCard, SpellCard
 from hearthstone.cards.registry import CardRegistry
 from hearthstone.enums import CardType
@@ -414,15 +415,16 @@ class TestDeckIntegration:
 # ============================================================
 
 
+_CARDS_JSON = Path("hearthstone/data/cards_collectible.json")
+
+
+@pytest.mark.skipif(not _CARDS_JSON.exists(), reason="cards_collectible.json not available (gitignored data file)")
 class TestBuildPoolFromRegistry:
     """Tests for building GA card pool from real card registry."""
 
     @pytest.fixture
     def registry(self):
-        from pathlib import Path
-        return CardRegistry.from_json(
-            Path("hearthstone/data/cards_collectible.json")
-        )
+        return CardRegistry.from_json(_CARDS_JSON)
 
     def test_returns_dict_of_cardspec(self, registry):
         """Returns a dict mapping card IDs to CardSpec objects."""
