@@ -2,7 +2,7 @@
 
 Tracks every file in the project, its current status, and development phase.
 
-**Project Status:** 1014 passing tests | Phases 1-9 ✅ Complete
+**Project Status:** 1102 passing tests | Phases 1-9 ✅ Complete | Roadmap Items 1-4 ✅ Complete
 
 **Status legend:**
 - `ACTIVE` — Contains real, tested code
@@ -16,8 +16,8 @@ Tracks every file in the project, its current status, and development phase.
 
 | File | Status | Notes |
 |------|--------|-------|
-| `hearthstone/engine/game.py` | ACTIVE | Game init with two players |
-| `hearthstone/engine/player.py` | ACTIVE | Player state with combat methods |
+| `hearthstone/engine/game.py` | ACTIVE | Game init with two players, hero class params |
+| `hearthstone/engine/player.py` | ACTIVE | Player state with combat methods, hero_class, armor, take_damage() |
 | `hearthstone/cards/base.py` | ACTIVE | Card and MinionCard dataclasses |
 | `hearthstone/enums.py` | ACTIVE | CardType, Rarity, CardClass enums implemented |
 | `hearthstone/exceptions.py` | ACTIVE | IllegalActionError, GameOverError |
@@ -37,6 +37,8 @@ Tracks every file in the project, its current status, and development phase.
 | `tests/cards/test_base.py` | ACTIVE | 11 tests: card creation, Divine Shield property |
 | `tests/cards/test_effects.py` | ACTIVE | 5 tests: Battlecry, Deathrattle registries |
 | `tests/cards/test_keywords.py` | ACTIVE | 30 tests: all keyword mechanics (169 total tests in Phase 1+2) |
+| `hearthstone/cards/battlecries.py` | ACTIVE | Battlecry text parser: 6 patterns (deal damage, draw, heal, armor, summon, buff) |
+| `tests/cards/test_battlecries.py` | ACTIVE | 29 tests: text parser, effect resolver, play_card integration |
 
 ## Phase 3 — Action Space, Simulation Interface, Basic Agents ✅ COMPLETE
 
@@ -44,6 +46,7 @@ Tracks every file in the project, its current status, and development phase.
 |------|--------|-------|
 | `hearthstone/engine/actions.py` | ACTIVE | Action execution fully implemented |
 | `tests/engine/test_actions.py` | ACTIVE | 31 tests for PlayCard, Attack, HeroPower, EndTurn |
+| `tests/engine/test_hero_powers.py` | ACTIVE | 35 tests: all 11 hero powers, player attributes, action space, simulator |
 | `simulation/game_state.py` | ACTIVE | Immutable game snapshot (416 total tests in Phases 1-3) |
 | `simulation/observation.py` | ACTIVE | Agent-facing view with information hiding |
 | `simulation/action_space.py` | ACTIVE | Legal action enumeration with TAUNT enforcement |
@@ -72,9 +75,9 @@ Tracks every file in the project, its current status, and development phase.
 | `hearthstone/data/heroes.json` | ACTIVE | 11 basic hero cards (HERO_01 through HERO_11) |
 | `tests/cards/test_registry.py` | ACTIVE | 16 tests: loading, lookup, filtering, type parsing |
 | `deckbuilding/deck.py` | ACTIVE | Deck class, CardSpec with rarity, build_pool_from_registry, deck codes |
-| `tests/deckbuilding/test_deck.py` | ACTIVE | 39 tests: creation, validation, stats, serialization, registry pool |
+| `tests/deckbuilding/test_deck.py` | ACTIVE | 53 tests: creation, validation, stats, serialization, registry pool, card_class filtering, card_set filtering |
 | `deckbuilding/constraints.py` | ACTIVE | Deck validation: size, copy limits, class restrictions, formats, bans |
-| `tests/deckbuilding/test_constraints.py` | ACTIVE | 22 tests: basic rules, class restrictions, formats |
+| `tests/deckbuilding/test_constraints.py` | ACTIVE | 23 tests: basic rules, class restrictions, formats, STANDARD_SETS integrity |
 | `deckbuilding/evaluator.py` | ACTIVE | Deck evaluation: heuristic, simulation, hybrid; evaluate_genotype with real Simulator |
 | `tests/deckbuilding/test_evaluator.py` | ACTIVE | 21 tests: heuristic, simulation, ranking, evaluate_genotype |
 | `scripts/import_cards.py` | ACTIVE | Import card data from HearthstoneJSON API |
@@ -140,7 +143,46 @@ Tracks every file in the project, its current status, and development phase.
 | File | Status | Notes |
 |------|--------|-------|
 | `deckbuilding/coevolution.py` | ACTIVE | CoevolutionConfig, CoevolutionEngine, classify_archetype, constrained_mutate |
-| `tests/deckbuilding/test_coevolution.py` | ACTIVE | 27 tests: config, archetype classification, constrained mutation, engine run, meta integration |
+| `tests/deckbuilding/test_coevolution.py` | ACTIVE | 36 tests: config, archetype classification, constrained mutation, engine run, meta integration, class-restricted evolution, set-restricted evolution |
+
+## CI/CD
+
+| File | Status | Notes |
+|------|--------|-------|
+| `.github/workflows/tests.yml` | ACTIVE | Matrix: Ubuntu/macOS/Windows × Python 3.12/3.13/3.14, unit tests + smoke test |
+| `scripts/smoke_test.py` | ACTIVE | CI smoke test: 10-game Greedy vs Random, asserts Greedy wins majority |
+
+---
+
+## Roadmap — Remaining Work for "Best Deck for Current Season"
+
+### 1. Class-Restricted Evolution — ✅ COMPLETE
+**Priority: Critical | Effort: Small**
+CoevolutionEngine generates decks mixing all classes together. The validation rules exist in `constraints.py` but aren't enforced during generation. Need: per-class card pools, class-specific evolution runs.
+
+### 2. Standard Format Filtering — ✅ COMPLETE
+**Priority: Critical | Effort: Small**
+`build_pool_from_registry` grabs cards from all sets ever printed. Format definitions exist in `constraints.py` (STANDARD_SETS) but aren't applied during pool building. Need: filter pool to current Standard rotation sets.
+
+### 3. Hero Powers — ✅ COMPLETE
+**Priority: High | Effort: Medium**
+All 11 hero powers implemented (Mage, Warlock, Priest, Paladin, Hunter, Warrior, Shaman, Rogue, Druid, Demon Hunter, Death Knight). Player has `hero_class`, `armor`, `take_damage()`. Game accepts hero class params. Action space enumerates hero powers with targeting for Mage/Priest. 35 new tests.
+
+### 4. Battlecry Effects — ✅ COMPLETE
+**Priority: High | Effort: Large**
+Text-based battlecry parser resolves 6 common patterns: deal damage, draw cards, restore health, gain armor, summon token, buff all friendly. BATTLECRY added to SUPPORTED_MECHANICS, unlocking ~700+ cards for GA pool. `play_card()` now accepts `opponent` param and triggers battlecry resolution. 29 new tests.
+
+### 5. Spell System — NOT STARTED
+**Priority: High | Effort: Large**
+2,170 spell cards exist in the registry but spell execution is a placeholder in `actions.py`. Need: targeting system, effect resolution for damage spells, buffs, removal, and AoE.
+
+### 6. Weapon System — NOT STARTED
+**Priority: Medium | Effort: Medium**
+229 weapon cards parsed but no equip/attack/durability logic. Need: weapon slot on player, hero attack action, durability tracking, weapon deathrattles.
+
+### 7. Smarter Evaluation Agent — NOT STARTED
+**Priority: Medium | Effort: Medium**
+GreedyAgent makes reasonable tactical plays but can't recognize card synergies, deck archetypes, combos, or adapt strategy to matchups. Need: improved heuristics or trained RL agent that understands deck-level strategy.
 
 ---
 

@@ -57,6 +57,8 @@ class CoevolutionConfig:
     crossover_rate: float = 0.7
     seed: Optional[int] = None
     max_turns_per_game: int = 80
+    card_class: Optional[str] = None
+    card_sets: Optional[set] = None
 
 
 def classify_archetype(genotype: List[str], pool: Dict[str, CardSpec]) -> str:
@@ -129,15 +131,29 @@ class CoevolutionEngine:
         self.meta_tracker = MetaTracker()
         self.matchup_matrix = MatchupMatrix()
 
+        # Filter pool by card_class and/or card_sets if specified
+        pool = config.pool
+        if config.card_class is not None:
+            pool = {
+                k: v for k, v in pool.items()
+                if getattr(v, 'card_class', None) in (config.card_class, "NEUTRAL", None)
+            }
+        if config.card_sets is not None:
+            pool = {
+                k: v for k, v in pool.items()
+                if getattr(v, 'card_set', None) in config.card_sets
+            }
+        self.pool = pool
+
     def run(self) -> List[Tuple[List[str], float]]:
         """Run the full co-evolutionary optimization.
 
         Returns:
             List of (genotype, fitness) sorted by fitness descending
         """
-        pool_keys = list(self.config.pool.keys())
+        pool_keys = list(self.pool.keys())
         population = [
-            random_deck(self.config.pool, self.config.deck_size, self.rng)
+            random_deck(self.pool, self.config.deck_size, self.rng)
             for _ in range(self.config.population_size)
         ]
 
@@ -178,7 +194,7 @@ class CoevolutionEngine:
                     agent1, agent2, self.config.games_per_matchup,
                     deck1_genotype=population[i],
                     deck2_genotype=population[j],
-                    pool=self.config.pool,
+                    pool=self.pool,
                 )
                 total_score += result.player1_win_rate
 
@@ -192,8 +208,8 @@ class CoevolutionEngine:
                 )
 
                 # Record in meta tracker by archetype
-                arch_i = classify_archetype(population[i], self.config.pool)
-                arch_j = classify_archetype(population[j], self.config.pool)
+                arch_i = classify_archetype(population[i], self.pool)
+                arch_j = classify_archetype(population[j], self.pool)
                 for _ in range(result.player1_wins):
                     self.meta_tracker.record_match(arch_i, arch_j, winner=arch_i)
                 for _ in range(result.player2_wins):
@@ -206,7 +222,7 @@ class CoevolutionEngine:
     def _record_meta(self, population: List[List[str]], gen: int):
         """Ensure all archetypes in the population are registered."""
         for genotype in population:
-            archetype = classify_archetype(genotype, self.config.pool)
+            archetype = classify_archetype(genotype, self.pool)
             self.meta_tracker._ensure_registered(archetype)
 
     def _next_generation(

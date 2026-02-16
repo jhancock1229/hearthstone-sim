@@ -7,9 +7,11 @@ from hearthstone.engine import events
 class Game:
     """Represents a Hearthstone game between two players."""
 
-    def __init__(self):
+    def __init__(self, player1_class: str = "MAGE", player2_class: str = "MAGE"):
         self.player1 = Player()
         self.player2 = Player()
+        self.player1.hero_class = player1_class
+        self.player2.hero_class = player2_class
         self._active_player = self.player1
         self._turn_number = 0
 
@@ -33,6 +35,7 @@ class Game:
         self.player2.gain_mana_crystal()
         self.active_player.refill_mana()
         self.active_player.draw_card()
+        self.active_player.hero_power_used = False
         self._turn_number += 1
 
         # Clear exhausted status and summoning sickness for active player's minions

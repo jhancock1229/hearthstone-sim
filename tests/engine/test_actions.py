@@ -11,6 +11,7 @@ from hearthstone.engine.game import Game
 from hearthstone.engine.player import Player
 from hearthstone.cards.base import MinionCard, SpellCard
 from hearthstone.exceptions import IllegalActionError
+from hearthstone.engine.actions import use_hero_power, end_turn
 
 
 # ============================================================
@@ -226,29 +227,50 @@ class TestHeroPower:
         """Using hero power should cost 2 mana by default."""
         player = Player()
         player.mana = 5
+        player.hero_class = "WARRIOR"
+        game = Game(player1_class="WARRIOR")
+        game.player1 = player
 
-        # Expected: after using hero power, mana should be 3
+        use_hero_power(player, game=game)
+        assert player.mana == 3
 
     def test_cannot_use_hero_power_without_enough_mana(self):
         """Cannot use hero power if mana < 2."""
         player = Player()
         player.mana = 1
+        player.hero_class = "WARRIOR"
 
-        # Expected: should raise IllegalActionError
+        with pytest.raises(IllegalActionError):
+            use_hero_power(player, game=Game())
 
     def test_cannot_use_hero_power_twice_per_turn(self):
         """Hero power can only be used once per turn."""
         player = Player()
         player.mana = 10
+        player.hero_class = "WARRIOR"
+        game = Game(player1_class="WARRIOR")
+        game.player1 = player
 
-        # Expected: first use succeeds, second raises IllegalActionError
+        use_hero_power(player, game=game)
+        with pytest.raises(IllegalActionError):
+            use_hero_power(player, game=game)
 
     def test_hero_power_resets_on_new_turn(self):
         """Hero power availability should reset at start of turn."""
-        game = Game()
+        game = Game(player1_class="WARRIOR")
         game.player1.mana = 10
+        game.player1.deck = [MinionCard(name=f"M{i}", mana_cost=1, attack=1, health=1) for i in range(10)]
+        game.player2.deck = [MinionCard(name=f"M{i}", mana_cost=1, attack=1, health=1) for i in range(10)]
 
-        # Expected: use hero power, end turn, start turn, can use again
+        use_hero_power(game.player1, game=game)
+        assert game.player1.hero_power_used is True
+
+        end_turn(game)       # p1 -> p2
+        game.start_turn()    # p2's turn
+        end_turn(game)       # p2 -> p1
+        game.start_turn()    # p1's turn again
+
+        assert game.player1.hero_power_used is False
 
 
 # ============================================================

@@ -27,17 +27,18 @@ class ValidationResult:
     warnings: List[str] = field(default_factory=list)
 
 
-# Standard format legal sets (as of recent expansions)
+# Standard format legal sets — names match the "set" field in cards_collectible.json
 STANDARD_SETS = {
-    "CORE",  # Core set
+    "CORE",  # Core set (evergreen)
     "TITANS",  # Titans
-    "FESTIVAL_OF_LEGENDS",  # Festival of Legends
-    "MARCH_OF_THE_LICH_KING",  # March of the Lich King
-    "PATH_OF_ARTHAS",  # Path of Arthas
-    "BATTLE_OF_THE_BANDS",  # Battle of the Bands
-    "SHOWDOWN_IN_THE_BADLANDS",  # Showdown in the Badlands
+    "RETURN_OF_THE_LICH_KING",  # March of the Lich King
+    "PATH_OF_ARTHAS",  # Path of Arthas (mini-set)
+    "BATTLE_OF_THE_BANDS",  # Festival of Legends
+    "WILD_WEST",  # Showdown in the Badlands
     "WHIZBANGS_WORKSHOP",  # Whizbang's Workshop
-    "PERILS_IN_PARADISE",  # Perils in Paradise
+    "ISLAND_VACATION",  # Perils in Paradise
+    "SPACE",  # The Great Dark Beyond
+    "THE_LOST_CITY",  # Tomb of the Tides (mini-set)
 }
 
 # Classic format sets

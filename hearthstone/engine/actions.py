@@ -20,6 +20,7 @@ def play_card(
     card_index: int,
     target: Optional[Any] = None,
     position: Optional[int] = None,
+    opponent: Optional[Any] = None,
 ) -> None:
     """Play a card from the player's hand.
 
@@ -28,6 +29,7 @@ def play_card(
         card_index: Index of card in player's hand
         target: Optional target for spells/battlecries
         position: Optional board position for minions (0-7)
+        opponent: Optional opponent player (needed for battlecry effects)
 
     Raises:
         IllegalActionError: If action is invalid (not enough mana, board full, etc.)
@@ -80,6 +82,10 @@ def play_card(
             card.summoning_sick = False
             card._can_attack = True
             card._rush_only = True
+
+        # Trigger battlecry effect
+        if "BATTLECRY" in card.mechanics:
+            resolve_battlecry(player, card, opponent)
 
     else:  # It's a spell or other card
         # Remove from hand
@@ -178,25 +184,67 @@ def attack(
         process_deaths(defender_player)
 
 
+def resolve_battlecry(player: Any, card: Any, opponent: Optional[Any] = None) -> None:
+    """Resolve a battlecry effect based on card's battlecry_effect attribute.
+
+    Args:
+        player: The player who played the card
+        card: The card with the battlecry
+        opponent: The opponent player
+    """
+    effect = getattr(card, 'battlecry_effect', None)
+    if not effect:
+        return
+
+    kind = effect[0]
+
+    if kind == "deal_damage":
+        if opponent is not None:
+            opponent.take_damage(effect[1])
+
+    elif kind == "draw":
+        for _ in range(effect[1]):
+            player.draw_card()
+
+    elif kind == "restore_health":
+        player.health = min(30, player.health + effect[1])
+
+    elif kind == "gain_armor":
+        player.armor += effect[1]
+
+    elif kind == "summon":
+        from hearthstone.cards.base import MinionCard as _MC
+        if len(player.board) < 7:
+            token = _MC(name="Token", mana_cost=0, attack=effect[1], health=effect[2])
+            token.summoning_sick = True
+            player.board.append(token)
+
+    elif kind == "buff_all":
+        for m in player.board:
+            if m is not card:
+                m.attack += effect[1]
+                m.health += effect[2]
+
+
 def use_hero_power(
     player: Any,
+    game: Optional[Any] = None,
     target: Optional[Any] = None,
 ) -> None:
     """Use the player's hero power.
 
     Args:
         player: The player using their hero power
-        target: Optional target for targeted hero powers
+        game: The Game instance (needed for opponent reference)
+        target: Optional target tuple for targeted hero powers.
+            Format: ("opponent_minion", idx), ("self_minion", idx),
+                    ("opponent_hero",), ("self_hero",)
 
     Raises:
         IllegalActionError: If action is invalid (not enough mana, already used, etc.)
         GameOverError: If game is already over
     """
     HERO_POWER_COST = 2
-
-    # Check if already used
-    if not hasattr(player, 'hero_power_used'):
-        player.hero_power_used = False
 
     if player.hero_power_used:
         raise IllegalActionError("Hero power has already been used this turn")
@@ -205,14 +253,106 @@ def use_hero_power(
     if player.mana < HERO_POWER_COST:
         raise IllegalActionError(f"Not enough mana to use hero power (need {HERO_POWER_COST}, have {player.mana})")
 
-    # Spend mana
-    player.mana -= HERO_POWER_COST
+    # Resolve opponent
+    opponent = None
+    if game is not None:
+        opponent = game.player2 if player is game.player1 else game.player1
 
-    # Mark as used
+    hero_class = getattr(player, 'hero_class', 'NEUTRAL')
+
+    # Targeted powers require a target
+    if hero_class in ("MAGE", "PRIEST") and target is None:
+        raise IllegalActionError(f"{hero_class} hero power requires a target")
+
+    # Paladin/Shaman need board space
+    if hero_class in ("PALADIN", "SHAMAN") and len(player.board) >= 7:
+        raise IllegalActionError("Board is full, cannot summon")
+
+    # Spend mana and mark used
+    player.mana -= HERO_POWER_COST
     player.hero_power_used = True
 
-    # Hero power effects would go here
-    # For now, this is a placeholder
+    # Execute effect
+    _execute_hero_power(player, opponent, hero_class, target)
+
+
+def _resolve_target(player, opponent, target):
+    """Resolve a target tuple to a (object, kind) pair.
+
+    Returns:
+        (target_object, kind) where kind is 'minion' or 'hero'
+    """
+    if target is None:
+        return None, None
+    label = target[0]
+    if label == "opponent_minion":
+        return opponent.board[target[1]], "minion"
+    elif label == "self_minion":
+        return player.board[target[1]], "minion"
+    elif label == "opponent_hero":
+        return opponent, "hero"
+    elif label == "self_hero":
+        return player, "hero"
+    return None, None
+
+
+def _execute_hero_power(player, opponent, hero_class, target):
+    """Execute the class-specific hero power effect."""
+    from hearthstone.cards.base import MinionCard
+
+    if hero_class == "MAGE":
+        obj, kind = _resolve_target(player, opponent, target)
+        if kind == "hero":
+            obj.take_damage(1)
+        elif kind == "minion":
+            obj.health -= 1
+
+    elif hero_class == "WARLOCK":
+        player.take_damage(2)
+        player.draw_card()
+
+    elif hero_class == "PRIEST":
+        obj, kind = _resolve_target(player, opponent, target)
+        if kind == "hero":
+            obj.health = min(30, obj.health + 2)
+        elif kind == "minion":
+            obj.health = obj.health + 2
+
+    elif hero_class == "PALADIN":
+        recruit = MinionCard(name="Silver Hand Recruit", mana_cost=1, attack=1, health=1)
+        recruit.summoning_sick = True
+        player.board.append(recruit)
+
+    elif hero_class == "HUNTER":
+        if opponent is not None:
+            opponent.take_damage(2)
+
+    elif hero_class == "WARRIOR":
+        player.armor += 2
+
+    elif hero_class == "SHAMAN":
+        totem = MinionCard(name="Totem", mana_cost=0, attack=0, health=2, mechanics=["TAUNT"])
+        totem.summoning_sick = True
+        player.board.append(totem)
+
+    elif hero_class == "ROGUE":
+        if opponent is not None and opponent.board:
+            # Hit a random enemy minion (first one for determinism in tests)
+            opponent.board[0].health -= 1
+        elif opponent is not None:
+            opponent.take_damage(1)
+
+    elif hero_class == "DRUID":
+        player.armor += 1
+
+    elif hero_class == "DEMONHUNTER":
+        if opponent is not None:
+            opponent.take_damage(1)
+
+    elif hero_class == "DEATHKNIGHT":
+        if opponent is not None:
+            for minion in opponent.board:
+                minion.health -= 1
 
 
 def end_turn(game: Any) -> None:

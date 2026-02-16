@@ -420,8 +420,8 @@ class TestActionIntegration:
         attack(game.player1, attacker_index=0, defender_player=game.player2, defender_index=None)
         assert game.player2.health == 28
 
-        # Use hero power
-        use_hero_power(game.player1)
+        # Use hero power (Mage requires target)
+        use_hero_power(game.player1, game=game, target=("opponent_hero",))
         assert game.player1.mana == 6
 
         # End turn

@@ -24,6 +24,9 @@ class Player:
         self.deck: list = []
         self.hand: list = []
         self.board: list = []  # List of minions on board
+        self.hero_class: str = "NEUTRAL"
+        self.armor: int = 0
+        self.hero_power_used: bool = False
     BOARD_LIMIT = 7
 
     def place_minion(self, minion, position=None):
@@ -95,3 +98,18 @@ class Player:
         else:
             self.fatigue_counter += 1
             self.health -= self.fatigue_counter
+
+    def take_damage(self, amount: int) -> None:
+        """Take damage, absorbing with armor first.
+
+        Args:
+            amount: Amount of damage to take
+        """
+        if amount <= 0:
+            return
+        if self.armor >= amount:
+            self.armor -= amount
+        else:
+            remainder = amount - self.armor
+            self.armor = 0
+            self.health -= remainder

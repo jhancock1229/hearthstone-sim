@@ -19,6 +19,10 @@ class CardSpec:
     health: int
     mechanics: List[str] | None = None
     rarity: str | None = None
+    card_class: str | None = None
+    card_set: str | None = None
+    text: str | None = None
+    battlecry_effect: tuple | None = None
 
 
 # Small synthetic pool used for initial experiments. Replace with
@@ -59,6 +63,8 @@ def build_concrete_deck(genotype: List[str], pool: Dict[str, CardSpec] = CARD_PO
         m = MinionCard(name=spec.name, mana_cost=spec.mana_cost, attack=spec.attack, health=spec.health)
         if spec.mechanics:
             m.mechanics.extend(list(spec.mechanics))
+        if spec.battlecry_effect is not None:
+            m.battlecry_effect = spec.battlecry_effect
         out.append(m)
     # Shuffle deck top/bottom so draw order varies
     rng.shuffle(out)
@@ -72,11 +78,15 @@ def validate_deck(genotype: List[str], pool: Dict[str, CardSpec] = CARD_POOL, si
 # Mechanics fully supported by the engine (combat.py / actions.py)
 SUPPORTED_MECHANICS = frozenset({
     "TAUNT", "DIVINE_SHIELD", "LIFESTEAL", "CHARGE",
-    "RUSH", "POISONOUS", "WINDFURY",
+    "RUSH", "POISONOUS", "WINDFURY", "BATTLECRY",
 })
 
 
-def build_pool_from_registry(registry) -> Dict[str, CardSpec]:
+def build_pool_from_registry(
+    registry,
+    card_class: str | None = None,
+    card_sets: set[str] | None = None,
+) -> Dict[str, CardSpec]:
     """Build a GA-compatible card pool from real minion cards in a registry.
 
     Only includes minions whose mechanics are all supported by the engine.
@@ -84,17 +94,32 @@ def build_pool_from_registry(registry) -> Dict[str, CardSpec]:
 
     Args:
         registry: CardRegistry instance loaded from card JSON
+        card_class: If provided, only include cards from this class + NEUTRAL.
+                    Use CardClass enum values like "MAGE", "WARRIOR", etc.
+        card_sets: If provided, only include cards from these sets.
+                   Use set names like {"CORE", "TITANS"}.
 
     Returns:
         Dict mapping card ID to CardSpec
     """
     from hearthstone.enums import CardType
-    from hearthstone.cards.base import MinionCard as MinionCardType
+    from hearthstone.cards.battlecries import parse_battlecry_text
 
     pool: Dict[str, CardSpec] = {}
     for card in registry.filter(card_type=CardType.MINION):
         card_mechs = set(card.mechanics) if card.mechanics else set()
         if card_mechs <= SUPPORTED_MECHANICS:
+            cc = card.card_class or "NEUTRAL"
+            if card_class is not None and cc not in (card_class, "NEUTRAL"):
+                continue
+            cs = card.card_set
+            if card_sets is not None and cs not in card_sets:
+                continue
+            # Parse battlecry text if card has BATTLECRY mechanic
+            bc_effect = None
+            card_text = getattr(card, 'text', None)
+            if "BATTLECRY" in card_mechs and card_text:
+                bc_effect = parse_battlecry_text(card_text)
             pool[card.id] = CardSpec(
                 name=card.name,
                 mana_cost=card.mana_cost,
@@ -102,6 +127,10 @@ def build_pool_from_registry(registry) -> Dict[str, CardSpec]:
                 health=card.health,
                 mechanics=list(card_mechs) if card_mechs else None,
                 rarity=card.rarity,
+                card_class=cc,
+                card_set=cs,
+                text=card_text,
+                battlecry_effect=bc_effect,
             )
     return pool
 

@@ -261,7 +261,8 @@ class Simulator:
                         game_actions.play_card(
                             player,
                             card_index=action.card_index,
-                            position=action.position
+                            position=action.position,
+                            opponent=opponent
                         )
                     elif action.type == ActionType.ATTACK:
                         # Execute attack (pass player and index, not minion object)
@@ -272,7 +273,7 @@ class Simulator:
                             defender_index=action.defender_index
                         )
                     elif action.type == ActionType.HERO_POWER:
-                        game_actions.use_hero_power(player)
+                        game_actions.use_hero_power(player, game=game, target=action.target)
                 except Exception as e:
                     # If action fails, just continue (agent chose invalid action)
                     if self.verbose:

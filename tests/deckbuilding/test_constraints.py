@@ -9,16 +9,20 @@ These tests validate:
 """
 
 import pytest
+from pathlib import Path
 from hearthstone.cards.base import MinionCard, SpellCard
 from deckbuilding.deck import Deck
 from deckbuilding.constraints import (
     DeckConstraints,
+    STANDARD_SETS,
     validate_deck_size,
     validate_copy_limits,
     validate_class_restrictions,
     validate_format_legality,
     Format,
 )
+
+_CARDS_JSON = Path(__file__).parent.parent.parent / "hearthstone" / "data" / "cards_collectible.json"
 
 
 class TestBasicConstraints:
@@ -309,3 +313,25 @@ class TestValidationResult:
         )
         assert result.is_valid
         assert len(result.warnings) == 2
+
+
+# ============================================================
+# STANDARD_SETS Data Integrity
+# ============================================================
+
+
+@pytest.mark.skipif(not _CARDS_JSON.exists(), reason="cards_collectible.json not available (gitignored data file)")
+class TestStandardSetsIntegrity:
+    """Verify STANDARD_SETS names match actual card data."""
+
+    def test_standard_sets_match_json_data(self):
+        """Every set in STANDARD_SETS exists in the card data."""
+        import json
+        with open(_CARDS_JSON) as f:
+            cards = json.load(f)
+        data_sets = {card.get("set") for card in cards if card.get("set")}
+        for std_set in STANDARD_SETS:
+            assert std_set in data_sets, (
+                f"STANDARD_SETS contains '{std_set}' but it doesn't exist in card data. "
+                f"Available sets: {sorted(data_sets)}"
+            )

@@ -157,8 +157,33 @@ class ActionSpace:
                         defender_index=None
                     ))
 
-        # 3. Hero power action (basic implementation)
-        # For now, skip hero power as it requires more complex handling
+        # 3. Hero power actions
+        if player.mana >= 2 and not getattr(player, 'hero_power_used', False):
+            hero_class = getattr(player, 'hero_class', 'NEUTRAL')
+            # Targeted hero powers enumerate all valid targets
+            if hero_class in ("MAGE", "PRIEST"):
+                # Can target any minion (both sides) and both heroes
+                for idx in range(len(player.board)):
+                    actions.append(Action(
+                        type=ActionType.HERO_POWER,
+                        target=("self_minion", idx)
+                    ))
+                for idx in range(len(opponent.board)):
+                    actions.append(Action(
+                        type=ActionType.HERO_POWER,
+                        target=("opponent_minion", idx)
+                    ))
+                actions.append(Action(
+                    type=ActionType.HERO_POWER,
+                    target=("self_hero",)
+                ))
+                actions.append(Action(
+                    type=ActionType.HERO_POWER,
+                    target=("opponent_hero",)
+                ))
+            else:
+                # Untargeted hero powers produce a single action
+                actions.append(Action(type=ActionType.HERO_POWER))
 
         # 4. End turn (always available)
         actions.append(Action(type=ActionType.END_TURN))

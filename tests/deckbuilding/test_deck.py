@@ -448,9 +448,9 @@ class TestBuildPoolFromRegistry:
         assert len(pool) > 500
 
     def test_excludes_unsupported_mechanics(self, registry):
-        """Minions with BATTLECRY, DEATHRATTLE etc. are excluded."""
+        """Minions with DEATHRATTLE, DISCOVER etc. are excluded."""
         pool = build_pool_from_registry(registry)
-        unsupported = {"BATTLECRY", "DEATHRATTLE", "DISCOVER", "SECRET"}
+        unsupported = {"DEATHRATTLE", "DISCOVER", "SECRET"}
         for spec in pool.values():
             if spec.mechanics:
                 card_mechs = set(spec.mechanics)
@@ -499,3 +499,106 @@ class TestBuildPoolFromRegistry:
         deck = build_concrete_deck(genotype, pool=pool)
         assert len(deck) == 30
         assert all(isinstance(c, MinionCard) for c in deck)
+
+    # -- Step 1: card_class on CardSpec --
+
+    def test_cardspec_has_card_class(self, registry):
+        """CardSpecs from registry have non-None card_class."""
+        pool = build_pool_from_registry(registry)
+        has_class = [s for s in pool.values() if s.card_class is not None]
+        assert len(has_class) > 100
+
+    def test_pool_contains_neutral_cards(self, registry):
+        """Pool includes NEUTRAL cards."""
+        pool = build_pool_from_registry(registry)
+        neutrals = [s for s in pool.values() if s.card_class == "NEUTRAL"]
+        assert len(neutrals) > 50
+
+    def test_pool_contains_class_cards(self, registry):
+        """Pool includes class-specific cards (e.g. MAGE)."""
+        pool = build_pool_from_registry(registry)
+        mage = [s for s in pool.values() if s.card_class == "MAGE"]
+        assert len(mage) > 0
+
+    # -- Step 2: class filtering in build_pool_from_registry --
+
+    def test_build_pool_class_filter_mage(self, registry):
+        """Filtering by MAGE returns only MAGE + NEUTRAL cards."""
+        pool = build_pool_from_registry(registry, card_class="MAGE")
+        for spec in pool.values():
+            assert spec.card_class in ("MAGE", "NEUTRAL"), (
+                f"{spec.name} is {spec.card_class}, expected MAGE or NEUTRAL"
+            )
+
+    def test_build_pool_class_filter_excludes_other(self, registry):
+        """MAGE pool has no WARRIOR cards."""
+        pool = build_pool_from_registry(registry, card_class="MAGE")
+        warrior = [s for s in pool.values() if s.card_class == "WARRIOR"]
+        assert len(warrior) == 0
+
+    def test_build_pool_class_filter_none_returns_all(self, registry):
+        """None card_class returns same as no filter (all classes)."""
+        pool_all = build_pool_from_registry(registry)
+        pool_none = build_pool_from_registry(registry, card_class=None)
+        assert len(pool_all) == len(pool_none)
+
+    def test_build_pool_class_filter_pool_size(self, registry):
+        """Filtered pool is smaller than unfiltered."""
+        pool_all = build_pool_from_registry(registry)
+        pool_mage = build_pool_from_registry(registry, card_class="MAGE")
+        assert len(pool_mage) < len(pool_all)
+        assert len(pool_mage) > 0
+
+    # -- card_set on CardSpec --
+
+    def test_cardspec_has_card_set(self, registry):
+        """CardSpecs from registry have non-None card_set."""
+        pool = build_pool_from_registry(registry)
+        has_set = [s for s in pool.values() if s.card_set is not None]
+        assert len(has_set) > 100
+
+    def test_pool_contains_multiple_sets(self, registry):
+        """Pool has cards from several different sets."""
+        pool = build_pool_from_registry(registry)
+        sets = {s.card_set for s in pool.values() if s.card_set}
+        assert len(sets) > 5
+
+    # -- card_sets filtering --
+
+    def test_build_pool_set_filter(self, registry):
+        """Filtering by {'CORE'} only returns CORE cards."""
+        pool = build_pool_from_registry(registry, card_sets={"CORE"})
+        for spec in pool.values():
+            assert spec.card_set == "CORE", (
+                f"{spec.name} is set {spec.card_set}, expected CORE"
+            )
+
+    def test_build_pool_set_filter_excludes_other(self, registry):
+        """CORE-only pool has no EXPERT1 cards."""
+        pool = build_pool_from_registry(registry, card_sets={"CORE"})
+        expert = [s for s in pool.values() if s.card_set == "EXPERT1"]
+        assert len(expert) == 0
+
+    def test_build_pool_set_filter_none_returns_all(self, registry):
+        """None card_sets returns same as no filter."""
+        pool_all = build_pool_from_registry(registry)
+        pool_none = build_pool_from_registry(registry, card_sets=None)
+        assert len(pool_all) == len(pool_none)
+
+    def test_build_pool_set_filter_multiple_sets(self, registry):
+        """Can filter by multiple sets."""
+        pool = build_pool_from_registry(registry, card_sets={"CORE", "TITANS"})
+        for spec in pool.values():
+            assert spec.card_set in ("CORE", "TITANS"), (
+                f"{spec.name} is set {spec.card_set}, expected CORE or TITANS"
+            )
+        sets = {s.card_set for s in pool.values()}
+        assert "CORE" in sets
+        assert "TITANS" in sets
+
+    def test_build_pool_set_filter_pool_smaller(self, registry):
+        """Filtered pool is smaller than unfiltered."""
+        pool_all = build_pool_from_registry(registry)
+        pool_core = build_pool_from_registry(registry, card_sets={"CORE"})
+        assert len(pool_core) < len(pool_all)
+        assert len(pool_core) > 0

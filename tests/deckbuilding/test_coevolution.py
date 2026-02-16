@@ -301,3 +301,155 @@ class TestCoevolutionEngineRun:
         scores1 = [s for _, s in results1]
         scores2 = [s for _, s in results2]
         assert scores1 == scores2
+
+
+# ============================================================
+# Class-Restricted Evolution
+# ============================================================
+
+
+class TestClassRestrictedEvolution:
+    """Tests for class-restricted deck evolution."""
+
+    def _class_pool(self):
+        """Create a pool with cards from different classes."""
+        return {
+            "M1": CardSpec("Mage Minion 1", 2, 3, 2, card_class="MAGE"),
+            "M2": CardSpec("Mage Minion 2", 3, 2, 4, card_class="MAGE"),
+            "W1": CardSpec("Warrior Minion 1", 3, 4, 3, card_class="WARRIOR"),
+            "W2": CardSpec("Warrior Minion 2", 5, 5, 5, card_class="WARRIOR"),
+            "N1": CardSpec("Neutral 1", 1, 1, 1, card_class="NEUTRAL"),
+            "N2": CardSpec("Neutral 2", 2, 2, 3, card_class="NEUTRAL"),
+            "N3": CardSpec("Neutral 3", 4, 4, 5, card_class="NEUTRAL"),
+            "N4": CardSpec("Neutral 4", 6, 6, 7, card_class="NEUTRAL"),
+        }
+
+    def test_config_card_class_default_none(self):
+        """card_class defaults to None."""
+        config = CoevolutionConfig(pool=CARD_POOL)
+        assert config.card_class is None
+
+    def test_config_card_class_custom(self):
+        """card_class can be set."""
+        config = CoevolutionConfig(pool=CARD_POOL, card_class="MAGE")
+        assert config.card_class == "MAGE"
+
+    def test_engine_filters_pool_by_class(self):
+        """With card_class set, engine's working pool only has that class + NEUTRAL."""
+        pool = self._class_pool()
+        config = CoevolutionConfig(
+            pool=pool, card_class="MAGE", seed=42,
+            population_size=4, generations=1, deck_size=10,
+            opponents_per_eval=2, games_per_matchup=1, max_turns_per_game=30,
+        )
+        engine = CoevolutionEngine(config)
+        # Engine should have filtered pool
+        for key in engine.pool:
+            spec = pool[key]
+            assert spec.card_class in ("MAGE", "NEUTRAL"), (
+                f"{spec.name} is {spec.card_class}, should be MAGE or NEUTRAL"
+            )
+        # Should NOT contain warrior cards
+        assert "W1" not in engine.pool
+        assert "W2" not in engine.pool
+
+    def test_engine_no_filter_when_class_none(self):
+        """No card_class = full pool used."""
+        pool = self._class_pool()
+        config = CoevolutionConfig(
+            pool=pool, card_class=None, seed=42,
+            population_size=4, generations=1, deck_size=10,
+            opponents_per_eval=2, games_per_matchup=1, max_turns_per_game=30,
+        )
+        engine = CoevolutionEngine(config)
+        assert len(engine.pool) == len(pool)
+
+    def test_run_class_restricted_produces_valid_decks(self):
+        """All genotypes only contain cards from target class or NEUTRAL."""
+        pool = self._class_pool()
+        config = CoevolutionConfig(
+            pool=pool, card_class="MAGE", seed=42,
+            population_size=4, generations=1, deck_size=10,
+            opponents_per_eval=2, games_per_matchup=1, max_turns_per_game=30,
+        )
+        engine = CoevolutionEngine(config)
+        results = engine.run()
+        valid_keys = {k for k, v in pool.items() if v.card_class in ("MAGE", "NEUTRAL")}
+        for genotype, _ in results:
+            for card_id in genotype:
+                assert card_id in valid_keys, (
+                    f"Card {card_id} not in MAGE+NEUTRAL pool"
+                )
+
+    def test_mutation_respects_class(self):
+        """Mutation with class-filtered pool can't introduce wrong-class cards."""
+        pool = self._class_pool()
+        # Pre-filter to MAGE + NEUTRAL (what engine would do)
+        filtered = {k: v for k, v in pool.items() if v.card_class in ("MAGE", "NEUTRAL")}
+        filtered_keys = list(filtered.keys())
+        genotype = ["M1", "M2", "N1", "N2", "N3", "N4", "M1", "M2", "N1", "N2"]
+        result = constrained_mutate(genotype, filtered_keys, rate=1.0,
+                                     rng=random.Random(42))
+        for card_id in result:
+            assert card_id in filtered_keys
+
+
+# ============================================================
+# Set-Restricted Evolution
+# ============================================================
+
+
+class TestSetRestrictedEvolution:
+    """Tests for set-restricted deck evolution."""
+
+    def _set_pool(self):
+        """Create a pool with cards from different sets."""
+        return {
+            "C1": CardSpec("Core 1", 1, 1, 1, card_set="CORE"),
+            "C2": CardSpec("Core 2", 2, 2, 3, card_set="CORE"),
+            "C3": CardSpec("Core 3", 3, 3, 4, card_set="CORE"),
+            "C4": CardSpec("Core 4", 4, 4, 5, card_set="CORE"),
+            "T1": CardSpec("Titan 1", 2, 3, 2, card_set="TITANS"),
+            "T2": CardSpec("Titan 2", 5, 5, 5, card_set="TITANS"),
+            "O1": CardSpec("Old 1", 3, 4, 3, card_set="NAXX"),
+            "O2": CardSpec("Old 2", 6, 6, 7, card_set="NAXX"),
+        }
+
+    def test_config_card_sets_default_none(self):
+        """card_sets defaults to None."""
+        config = CoevolutionConfig(pool=CARD_POOL)
+        assert config.card_sets is None
+
+    def test_engine_filters_pool_by_sets(self):
+        """With card_sets set, engine's working pool only has those sets."""
+        pool = self._set_pool()
+        config = CoevolutionConfig(
+            pool=pool, card_sets={"CORE", "TITANS"}, seed=42,
+            population_size=4, generations=1, deck_size=10,
+            opponents_per_eval=2, games_per_matchup=1, max_turns_per_game=30,
+        )
+        engine = CoevolutionEngine(config)
+        for key in engine.pool:
+            spec = pool[key]
+            assert spec.card_set in ("CORE", "TITANS"), (
+                f"{spec.name} is set {spec.card_set}, should be CORE or TITANS"
+            )
+        assert "O1" not in engine.pool
+        assert "O2" not in engine.pool
+
+    def test_run_set_restricted_produces_valid_decks(self):
+        """All evolved deck cards belong to specified sets."""
+        pool = self._set_pool()
+        config = CoevolutionConfig(
+            pool=pool, card_sets={"CORE"}, seed=42,
+            population_size=4, generations=1, deck_size=10,
+            opponents_per_eval=2, games_per_matchup=1, max_turns_per_game=30,
+        )
+        engine = CoevolutionEngine(config)
+        results = engine.run()
+        valid_keys = {k for k, v in pool.items() if v.card_set == "CORE"}
+        for genotype, _ in results:
+            for card_id in genotype:
+                assert card_id in valid_keys, (
+                    f"Card {card_id} not in CORE pool"
+                )
