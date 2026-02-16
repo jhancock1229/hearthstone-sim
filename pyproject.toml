@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hearthstone-sim"
+version = "0.1.0"
+description = "Hearthstone game simulator for AI training and deck optimization"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+ml = ["gymnasium", "torch", "numpy"]
+dev = ["pytest", "pytest-cov", "ruff"]
+analysis = ["matplotlib", "pandas"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agents*", "configs*", "analysis*", "training*", "simulation*", "hearthstone*", "deckbuilding*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 99

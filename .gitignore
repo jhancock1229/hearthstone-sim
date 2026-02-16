@@ -1,0 +1,95 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.swp
+*.swo
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# Virtual Environment
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Python Wheels
+*.whl
+
+# Package distribution
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+
+# Coverage reports
+.coverage
+coverage.xml
+*.cover
+*.hypothesis/
+.tox/
+
+# Model files (for machine learning)
+*.h5
+*.pkl
+*.pklz
+*.joblib
+*.onnx
+*.tf
+*.pt
+*.pth
+*.sav
+*.tflite
+
+# Data files (if stored locally and not in the repo)
+data/
+*.csv
+*.tsv
+*.json
+*.xls
+*.xlsx
+*.sqlite
+
+# Temporary or compiled files
+*.tmp
+*.bak
+
+# Pytest cache
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Pyright
+.pyright/
+
+# pypoetry
+.poetry/
+
+# Jupyter Notebook checkpoints and metadata
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# pyproject.toml and poetry.lock (if you use poetry for dependencies, but typically you will include them in the repo)
+# poetry.lock
+

@@ -1,0 +1,8 @@
+# PLACEHOLDER — Phase 5
+# Base experiment configuration
+# training:
+#   episodes: 100000
+#   eval_interval: 1000
+# agent:
+#   type: ppo
+#   learning_rate: 0.0003
