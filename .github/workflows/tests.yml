@@ -29,3 +29,6 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
+
+      - name: Smoke test simulation
+        run: python scripts/smoke_test.py
