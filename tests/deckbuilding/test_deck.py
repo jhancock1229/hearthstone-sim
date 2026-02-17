@@ -447,12 +447,12 @@ class TestBuildPoolFromRegistry:
         pool = build_pool_from_registry(registry)
         assert len(pool) > 500
 
-    def test_excludes_unsupported_mechanics(self, registry):
+    def test_excludes_unsupported_mechanics_on_minions(self, registry):
         """Minions with DEATHRATTLE, DISCOVER etc. are excluded."""
         pool = build_pool_from_registry(registry)
         unsupported = {"DEATHRATTLE", "DISCOVER", "SECRET"}
         for spec in pool.values():
-            if spec.mechanics:
+            if spec.card_type == "MINION" and spec.mechanics:
                 card_mechs = set(spec.mechanics)
                 assert card_mechs.isdisjoint(unsupported), (
                     f"{spec.name} has unsupported mechanic: {card_mechs & unsupported}"
@@ -494,11 +494,12 @@ class TestBuildPoolFromRegistry:
     def test_build_concrete_deck_works_with_registry_pool(self, registry):
         """build_concrete_deck works with a registry-derived pool."""
         from deckbuilding.deck import build_concrete_deck, random_deck
+        from hearthstone.cards.base import SpellCard
         pool = build_pool_from_registry(registry)
         genotype = random_deck(pool, size=30)
         deck = build_concrete_deck(genotype, pool=pool)
         assert len(deck) == 30
-        assert all(isinstance(c, MinionCard) for c in deck)
+        assert all(isinstance(c, (MinionCard, SpellCard)) for c in deck)
 
     # -- Step 1: card_class on CardSpec --
 

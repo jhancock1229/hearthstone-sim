@@ -46,6 +46,19 @@ def play_card(
     if player.mana < card.mana_cost:
         raise IllegalActionError(f"Not enough mana to play {card.name} (need {card.mana_cost}, have {player.mana})")
 
+    # Check if it's a weapon card (has durability, not health)
+    if hasattr(card, 'durability') and not hasattr(card, 'health'):
+        # Remove from hand
+        player.hand.pop(card_index)
+        # Spend mana
+        player.mana -= card.mana_cost
+        # Equip weapon (replaces existing)
+        player.weapon = card
+        # Trigger battlecry if present
+        if "BATTLECRY" in card.mechanics:
+            resolve_battlecry(player, card, opponent)
+        return
+
     # Check if it's a minion card
     if hasattr(card, 'attack') and hasattr(card, 'health'):  # It's a minion
         # Check board limit
@@ -94,7 +107,8 @@ def play_card(
         # Spend mana
         player.mana -= card.mana_cost
 
-        # Spell execution would go here
+        # Resolve spell effect
+        resolve_spell(player, card, opponent)
 
 
 def attack(
@@ -182,6 +196,95 @@ def attack(
         # Process deaths
         process_deaths(attacker_player)
         process_deaths(defender_player)
+
+
+def resolve_spell(player: Any, card: Any, opponent: Optional[Any] = None) -> None:
+    """Resolve a spell effect based on card's spell_effect attribute.
+
+    Args:
+        player: The player who cast the spell
+        card: The spell card
+        opponent: The opponent player
+    """
+    effect = getattr(card, 'spell_effect', None)
+    if not effect:
+        return
+
+    kind = effect[0]
+
+    if kind == "deal_damage":
+        if opponent is not None:
+            opponent.take_damage(effect[1])
+
+    elif kind == "aoe_damage":
+        if opponent is not None:
+            for m in opponent.board:
+                m.health -= effect[1]
+            # Remove dead minions
+            opponent.board = [m for m in opponent.board if m.health > 0]
+
+    elif kind == "draw":
+        for _ in range(effect[1]):
+            player.draw_card()
+
+    elif kind == "restore_health":
+        player.health = min(30, player.health + effect[1])
+
+    elif kind == "gain_armor":
+        player.armor += effect[1]
+
+    elif kind == "destroy":
+        if opponent is not None and opponent.board:
+            opponent.board.pop(0)
+
+    elif kind == "summon":
+        from hearthstone.cards.base import MinionCard as _MC
+        if len(player.board) < 7:
+            token = _MC(name="Token", mana_cost=0, attack=effect[1], health=effect[2])
+            token.summoning_sick = True
+            player.board.append(token)
+
+
+def hero_attack(
+    player: Any,
+    opponent: Any,
+    defender_index: Optional[int] = None,
+) -> None:
+    """Attack with the hero using an equipped weapon.
+
+    Args:
+        player: The attacking player
+        opponent: The defending player
+        defender_index: Index of defending minion (None = attack face)
+
+    Raises:
+        IllegalActionError: If no weapon equipped or already attacked
+    """
+    if player.weapon is None:
+        raise IllegalActionError("No weapon equipped")
+
+    if player.hero_attacked:
+        raise IllegalActionError("Hero has already attacked this turn")
+
+    weapon_attack = player.weapon.attack
+
+    if defender_index is None:
+        # Attack face
+        opponent.take_damage(weapon_attack)
+    else:
+        # Attack minion
+        minion = opponent.board[defender_index]
+        minion.health -= weapon_attack
+        player.take_damage(minion.attack)
+        # Remove dead minions
+        opponent.board = [m for m in opponent.board if m.health > 0]
+
+    # Lose durability
+    player.weapon.durability -= 1
+    if player.weapon.durability <= 0:
+        player.weapon = None
+
+    player.hero_attacked = True
 
 
 def resolve_battlecry(player: Any, card: Any, opponent: Optional[Any] = None) -> None:
@@ -364,8 +467,9 @@ def end_turn(game: Any) -> None:
     Raises:
         GameOverError: If game is already over
     """
-    # Reset hero power usage
+    # Reset hero power usage and hero attack
     game.active_player.hero_power_used = False
+    game.active_player.hero_attacked = False
 
     # Reset minion attack status
     for minion in game.active_player.board:

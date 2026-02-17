@@ -27,6 +27,8 @@ class Player:
         self.hero_class: str = "NEUTRAL"
         self.armor: int = 0
         self.hero_power_used: bool = False
+        self.weapon = None
+        self.hero_attacked: bool = False
     BOARD_LIMIT = 7
 
     def place_minion(self, minion, position=None):

@@ -272,6 +272,12 @@ class Simulator:
                             defender_player=opponent,
                             defender_index=action.defender_index
                         )
+                    elif action.type == ActionType.HERO_ATTACK:
+                        game_actions.hero_attack(
+                            player,
+                            opponent,
+                            defender_index=action.defender_index
+                        )
                     elif action.type == ActionType.HERO_POWER:
                         game_actions.use_hero_power(player, game=game, target=action.target)
                 except Exception as e:
@@ -325,6 +331,11 @@ class Simulator:
         # Get legal actions
         legal_actions = ActionSpace.get_legal_actions(game)
 
+        # Extract weapon info
+        weapon = getattr(player, 'weapon', None)
+        weapon_attack = weapon.attack if weapon else 0
+        weapon_durability = weapon.durability if weapon else 0
+
         return Observation(
             self_health=player.health,
             self_mana=player.mana,
@@ -340,6 +351,11 @@ class Simulator:
             opponent_hand_size=len(opponent.hand),
             opponent_deck_size=len(opponent.deck),
             opponent_board=[minion for minion in opponent.board],
+            self_weapon_attack=weapon_attack,
+            self_weapon_durability=weapon_durability,
+            self_armor=getattr(player, 'armor', 0),
+            self_hero_class=getattr(player, 'hero_class', 'NEUTRAL'),
+            opponent_armor=getattr(opponent, 'armor', 0),
             turn_number=game.turn_number,
             is_my_turn=(game.active_player == player),
             is_game_over=game.is_over,

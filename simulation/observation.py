@@ -67,6 +67,13 @@ class Observation:
     opponent_deck_size: int = 0
     opponent_board: List[Any] = field(default_factory=list)
 
+    # Weapon / armor / class state
+    self_weapon_attack: int = 0
+    self_weapon_durability: int = 0
+    self_armor: int = 0
+    self_hero_class: str = "NEUTRAL"
+    opponent_armor: int = 0
+
     # Game state
     turn_number: int = 0
     is_my_turn: bool = False

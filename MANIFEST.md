@@ -2,7 +2,7 @@
 
 Tracks every file in the project, its current status, and development phase.
 
-**Project Status:** 1102 passing tests | Phases 1-9 ✅ Complete | Roadmap Items 1-4 ✅ Complete
+**Project Status:** 1192 passing tests | Phases 1-9 ✅ Complete | Roadmap Items 1-7 ✅ Complete
 
 **Status legend:**
 - `ACTIVE` — Contains real, tested code
@@ -17,7 +17,7 @@ Tracks every file in the project, its current status, and development phase.
 | File | Status | Notes |
 |------|--------|-------|
 | `hearthstone/engine/game.py` | ACTIVE | Game init with two players, hero class params |
-| `hearthstone/engine/player.py` | ACTIVE | Player state with combat methods, hero_class, armor, take_damage() |
+| `hearthstone/engine/player.py` | ACTIVE | Player state with combat methods, hero_class, armor, take_damage(), weapon slot, hero_attacked |
 | `hearthstone/cards/base.py` | ACTIVE | Card and MinionCard dataclasses |
 | `hearthstone/enums.py` | ACTIVE | CardType, Rarity, CardClass enums implemented |
 | `hearthstone/exceptions.py` | ACTIVE | IllegalActionError, GameOverError |
@@ -37,19 +37,21 @@ Tracks every file in the project, its current status, and development phase.
 | `tests/cards/test_base.py` | ACTIVE | 11 tests: card creation, Divine Shield property |
 | `tests/cards/test_effects.py` | ACTIVE | 5 tests: Battlecry, Deathrattle registries |
 | `tests/cards/test_keywords.py` | ACTIVE | 30 tests: all keyword mechanics (169 total tests in Phase 1+2) |
-| `hearthstone/cards/battlecries.py` | ACTIVE | Battlecry text parser: 6 patterns (deal damage, draw, heal, armor, summon, buff) |
-| `tests/cards/test_battlecries.py` | ACTIVE | 29 tests: text parser, effect resolver, play_card integration |
+| `hearthstone/cards/battlecries.py` | ACTIVE | Card text parsers: battlecry (6 patterns) + spell (7 patterns) |
+| `tests/cards/test_battlecries.py` | ACTIVE | 29 tests: battlecry text parser, effect resolver, play_card integration |
+| `tests/cards/test_spells.py` | ACTIVE | 32 tests: spell text parser, effect resolver, deck building integration |
+| `tests/engine/test_weapons.py` | ACTIVE | 26 tests: weapon equip, hero attack, durability, action space, deck building |
 
 ## Phase 3 — Action Space, Simulation Interface, Basic Agents ✅ COMPLETE
 
 | File | Status | Notes |
 |------|--------|-------|
-| `hearthstone/engine/actions.py` | ACTIVE | Action execution fully implemented |
+| `hearthstone/engine/actions.py` | ACTIVE | Action execution: play_card (minion/spell/weapon), attack, hero_attack, hero_power, end_turn |
 | `tests/engine/test_actions.py` | ACTIVE | 31 tests for PlayCard, Attack, HeroPower, EndTurn |
 | `tests/engine/test_hero_powers.py` | ACTIVE | 35 tests: all 11 hero powers, player attributes, action space, simulator |
 | `simulation/game_state.py` | ACTIVE | Immutable game snapshot (416 total tests in Phases 1-3) |
-| `simulation/observation.py` | ACTIVE | Agent-facing view with information hiding |
-| `simulation/action_space.py` | ACTIVE | Legal action enumeration with TAUNT enforcement |
+| `simulation/observation.py` | ACTIVE | Agent-facing view with information hiding, weapon/armor/hero_class fields |
+| `simulation/action_space.py` | ACTIVE | Legal action enumeration with TAUNT enforcement, hero attack targets |
 | `simulation/simulator.py` | ACTIVE | Fast N-game rollout with statistics, custom deck/pool support |
 | `simulation/replay.py` | ACTIVE | Seed + action log replay system |
 | `agents/base.py` | ACTIVE | Abstract Agent interface with choose_action |
@@ -87,7 +89,9 @@ Tracks every file in the project, its current status, and development phase.
 | File | Status | Notes |
 |------|--------|-------|
 | `agents/greedy_agent.py` | ACTIVE | Heuristic agent with greedy value maximization |
+| `agents/enhanced_greedy_agent.py` | ACTIVE | Enhanced agent: lethal detection, spell/weapon eval, board awareness, hero power targeting |
 | `tests/agents/test_greedy_agent.py` | ACTIVE | 16 tests: action selection, heuristics, edge cases |
+| `tests/agents/test_enhanced_greedy_agent.py` | ACTIVE | 32 tests: spells, weapons, hero attack, lethal, board awareness, hero power, integration |
 | `agents/mcts_agent.py` | ACTIVE | Monte Carlo Tree Search agent with UCB1 selection |
 | `tests/agents/test_mcts_agent.py` | ACTIVE | 29 tests: node structure, UCB1, MCTS phases, edge cases |
 | `agents/rl/features.py` | ACTIVE | Observation → 106-dim feature vector (normalized to [0,1]) |
@@ -172,17 +176,17 @@ All 11 hero powers implemented (Mage, Warlock, Priest, Paladin, Hunter, Warrior,
 **Priority: High | Effort: Large**
 Text-based battlecry parser resolves 6 common patterns: deal damage, draw cards, restore health, gain armor, summon token, buff all friendly. BATTLECRY added to SUPPORTED_MECHANICS, unlocking ~700+ cards for GA pool. `play_card()` now accepts `opponent` param and triggers battlecry resolution. 29 new tests.
 
-### 5. Spell System — NOT STARTED
+### 5. Spell System — ✅ COMPLETE
 **Priority: High | Effort: Large**
-2,170 spell cards exist in the registry but spell execution is a placeholder in `actions.py`. Need: targeting system, effect resolution for damage spells, buffs, removal, and AoE.
+Spell text parser (`parse_spell_text`) resolves 7 patterns: deal damage, AoE damage, draw, restore health, gain armor, destroy minion, summon. All spells simplified to untargeted. `build_pool_from_registry()` now includes spells with recognized effects. `build_concrete_deck()` creates SpellCard instances for spell specs. 32 new tests.
 
-### 6. Weapon System — NOT STARTED
+### 6. Weapon System — ✅ COMPLETE
 **Priority: Medium | Effort: Medium**
-229 weapon cards parsed but no equip/attack/durability logic. Need: weapon slot on player, hero attack action, durability tracking, weapon deathrattles.
+Weapon equip via `play_card()`, hero attack with durability tracking, weapon breaks at 0 durability. `HERO_ATTACK` action type with TAUNT enforcement. `build_pool_from_registry()` includes weapons with supported mechanics. `build_concrete_deck()` creates WeaponCard instances. Weapon battlecries supported. 26 new tests.
 
-### 7. Smarter Evaluation Agent — NOT STARTED
+### 7. Smarter Evaluation Agent — ✅ COMPLETE
 **Priority: Medium | Effort: Medium**
-GreedyAgent makes reasonable tactical plays but can't recognize card synergies, deck archetypes, combos, or adapt strategy to matchups. Need: improved heuristics or trained RL agent that understands deck-level strategy.
+`EnhancedGreedyAgent` with lethal detection, card-type-aware scoring (spells by effect, weapons by total damage), hero attack evaluation, board-state-aware trading (face when ahead, trade when behind), class-specific hero power targeting. `Observation` extended with weapon/armor/hero_class fields. Evaluator and CoevolutionEngine accept `agent_class` parameter. 32 new tests.
 
 ---
 

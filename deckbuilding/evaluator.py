@@ -156,6 +156,7 @@ class SimulationEvaluator:
         seed: Optional[int] = None,
         opponent_genotype: Optional[List[str]] = None,
         pool: Optional[Dict[str, Any]] = None,
+        agent_class: Optional[type] = None,
     ):
         """Initialize simulation evaluator.
 
@@ -165,12 +166,14 @@ class SimulationEvaluator:
             seed: Random seed for reproducibility
             opponent_genotype: Optional genotype for opponent deck
             pool: Optional card pool for genotype-based evaluation
+            agent_class: Agent class to use for simulations (default: GreedyAgent)
         """
         self.num_games = num_games
         self.opponent_deck = opponent_deck
         self.seed = seed
         self.opponent_genotype = opponent_genotype
         self.pool = pool
+        self.agent_class = agent_class
 
     def evaluate(self, deck) -> EvaluationResult:
         """Evaluate deck by simulating games.
@@ -217,7 +220,7 @@ class SimulationEvaluator:
     def evaluate_genotype(self, genotype: List[str]) -> EvaluationResult:
         """Evaluate a deck genotype by running real simulated games.
 
-        Uses the Simulator with GreedyAgent to play actual games.
+        Uses the Simulator with the configured agent class to play actual games.
 
         Args:
             genotype: List of card pool keys representing the deck
@@ -228,9 +231,10 @@ class SimulationEvaluator:
         from simulation.simulator import Simulator
         from agents.greedy_agent import GreedyAgent
 
+        AgentCls = self.agent_class or GreedyAgent
         sim = Simulator(seed=self.seed, max_turns=80)
-        agent1 = GreedyAgent()
-        agent2 = GreedyAgent()
+        agent1 = AgentCls()
+        agent2 = AgentCls()
         result = sim.run_games(
             agent1, agent2, self.num_games,
             deck1_genotype=genotype,

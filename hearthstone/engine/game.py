@@ -36,6 +36,7 @@ class Game:
         self.active_player.refill_mana()
         self.active_player.draw_card()
         self.active_player.hero_power_used = False
+        self.active_player.hero_attacked = False
         self._turn_number += 1
 
         # Clear exhausted status and summoning sickness for active player's minions

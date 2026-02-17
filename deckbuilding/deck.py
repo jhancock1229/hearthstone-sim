@@ -23,6 +23,8 @@ class CardSpec:
     card_set: str | None = None
     text: str | None = None
     battlecry_effect: tuple | None = None
+    card_type: str = "MINION"
+    spell_effect: tuple | None = None
 
 
 # Small synthetic pool used for initial experiments. Replace with
@@ -46,26 +48,41 @@ def random_deck(pool: Dict[str, CardSpec] = CARD_POOL, size: int = 30, rng: rand
     return [rng.choice(names) for _ in range(size)]
 
 
-def build_concrete_deck(genotype: List[str], pool: Dict[str, CardSpec] = CARD_POOL, rng: random.Random = None) -> List[MinionCard]:
-    """Convert a genotype (list of card names) into MinionCard instances.
+def build_concrete_deck(genotype: List[str], pool: Dict[str, CardSpec] = CARD_POOL, rng: random.Random = None) -> list:
+    """Convert a genotype (list of card names) into card instances.
 
     Each card is instantiated fresh to avoid shared mutable state between
     deck copies used in simulations.
     """
     if rng is None:
         rng = random
-    out: List[MinionCard] = []
+    from hearthstone.cards.base import SpellCard
+    out: list = []
     for name in genotype:
         spec = pool.get(name)
         if spec is None:
             # skip unknown entries
             continue
-        m = MinionCard(name=spec.name, mana_cost=spec.mana_cost, attack=spec.attack, health=spec.health)
-        if spec.mechanics:
-            m.mechanics.extend(list(spec.mechanics))
-        if spec.battlecry_effect is not None:
-            m.battlecry_effect = spec.battlecry_effect
-        out.append(m)
+        if spec.card_type == "SPELL":
+            card = SpellCard(name=spec.name, mana_cost=spec.mana_cost)
+            if spec.mechanics:
+                card.mechanics.extend(list(spec.mechanics))
+            if spec.spell_effect is not None:
+                card.spell_effect = spec.spell_effect
+        elif spec.card_type == "WEAPON":
+            from hearthstone.cards.base import WeaponCard
+            card = WeaponCard(name=spec.name, mana_cost=spec.mana_cost, attack=spec.attack, durability=spec.health)
+            if spec.mechanics:
+                card.mechanics.extend(list(spec.mechanics))
+            if spec.battlecry_effect is not None:
+                card.battlecry_effect = spec.battlecry_effect
+        else:
+            card = MinionCard(name=spec.name, mana_cost=spec.mana_cost, attack=spec.attack, health=spec.health)
+            if spec.mechanics:
+                card.mechanics.extend(list(spec.mechanics))
+            if spec.battlecry_effect is not None:
+                card.battlecry_effect = spec.battlecry_effect
+        out.append(card)
     # Shuffle deck top/bottom so draw order varies
     rng.shuffle(out)
     return out
@@ -103,9 +120,11 @@ def build_pool_from_registry(
         Dict mapping card ID to CardSpec
     """
     from hearthstone.enums import CardType
-    from hearthstone.cards.battlecries import parse_battlecry_text
+    from hearthstone.cards.battlecries import parse_battlecry_text, parse_spell_text
 
     pool: Dict[str, CardSpec] = {}
+
+    # Include minions
     for card in registry.filter(card_type=CardType.MINION):
         card_mechs = set(card.mechanics) if card.mechanics else set()
         if card_mechs <= SUPPORTED_MECHANICS:
@@ -132,6 +151,62 @@ def build_pool_from_registry(
                 text=card_text,
                 battlecry_effect=bc_effect,
             )
+
+    # Include spells with recognized effects
+    for card in registry.filter(card_type=CardType.SPELL):
+        card_text = getattr(card, 'text', None)
+        spell_effect = parse_spell_text(card_text) if card_text else None
+        if spell_effect is None:
+            continue  # Skip spells we can't resolve
+        cc = card.card_class or "NEUTRAL"
+        if card_class is not None and cc not in (card_class, "NEUTRAL"):
+            continue
+        cs = card.card_set
+        if card_sets is not None and cs not in card_sets:
+            continue
+        card_mechs = set(card.mechanics) if card.mechanics else set()
+        pool[card.id] = CardSpec(
+            name=card.name,
+            mana_cost=card.mana_cost,
+            attack=0,
+            health=0,
+            mechanics=list(card_mechs) if card_mechs else None,
+            rarity=card.rarity,
+            card_class=cc,
+            card_set=cs,
+            text=card_text,
+            card_type="SPELL",
+            spell_effect=spell_effect,
+        )
+
+    # Include weapons with supported mechanics (skip DEATHRATTLE etc.)
+    for card in registry.filter(card_type=CardType.WEAPON):
+        card_mechs = set(card.mechanics) if card.mechanics else set()
+        if card_mechs <= SUPPORTED_MECHANICS:
+            cc = card.card_class or "NEUTRAL"
+            if card_class is not None and cc not in (card_class, "NEUTRAL"):
+                continue
+            cs = card.card_set
+            if card_sets is not None and cs not in card_sets:
+                continue
+            bc_effect = None
+            card_text = getattr(card, 'text', None)
+            if "BATTLECRY" in card_mechs and card_text:
+                bc_effect = parse_battlecry_text(card_text)
+            pool[card.id] = CardSpec(
+                name=card.name,
+                mana_cost=card.mana_cost,
+                attack=card.attack,
+                health=card.durability,
+                mechanics=list(card_mechs) if card_mechs else None,
+                rarity=card.rarity,
+                card_class=cc,
+                card_set=cs,
+                text=card_text,
+                battlecry_effect=bc_effect,
+                card_type="WEAPON",
+            )
+
     return pool
 
 

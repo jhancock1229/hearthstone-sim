@@ -59,6 +59,7 @@ class CoevolutionConfig:
     max_turns_per_game: int = 80
     card_class: Optional[str] = None
     card_sets: Optional[set] = None
+    agent_class: Optional[type] = None
 
 
 def classify_archetype(genotype: List[str], pool: Dict[str, CardSpec]) -> str:
@@ -188,8 +189,9 @@ class CoevolutionEngine:
                     seed=self.rng.randint(0, 2**31 - 1),
                     max_turns=self.config.max_turns_per_game,
                 )
-                agent1 = GreedyAgent()
-                agent2 = GreedyAgent()
+                AgentCls = self.config.agent_class or GreedyAgent
+                agent1 = AgentCls()
+                agent2 = AgentCls()
                 result = sim.run_games(
                     agent1, agent2, self.config.games_per_matchup,
                     deck1_genotype=population[i],

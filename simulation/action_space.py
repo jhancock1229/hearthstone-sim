@@ -26,6 +26,7 @@ class ActionType(Enum):
     PLAY_CARD = "play_card"
     ATTACK = "attack"
     HERO_POWER = "hero_power"
+    HERO_ATTACK = "hero_attack"
     END_TURN = "end_turn"
 
 
@@ -102,8 +103,14 @@ class ActionSpace:
         for card_index, card in enumerate(player.hand):
             # Check if we have enough mana
             if player.mana >= card.mana_cost:
+                # Check if it's a weapon (has durability, not health)
+                if hasattr(card, 'durability') and not hasattr(card, 'health'):
+                    actions.append(Action(
+                        type=ActionType.PLAY_CARD,
+                        card_index=card_index
+                    ))
                 # Check if it's a minion
-                if hasattr(card, 'attack') and hasattr(card, 'health'):
+                elif hasattr(card, 'attack') and hasattr(card, 'health'):
                     # Check board limit
                     if len(player.board) < 7:
                         # Can play at any position
@@ -114,7 +121,7 @@ class ActionSpace:
                                 position=position
                             ))
                 else:
-                    # Spell or other card type - for now, just add basic action
+                    # Spell or other card type
                     actions.append(Action(
                         type=ActionType.PLAY_CARD,
                         card_index=card_index
@@ -185,7 +192,29 @@ class ActionSpace:
                 # Untargeted hero powers produce a single action
                 actions.append(Action(type=ActionType.HERO_POWER))
 
-        # 4. End turn (always available)
+        # 4. Hero attack actions (weapon equipped and hasn't attacked)
+        if getattr(player, 'weapon', None) is not None and not getattr(player, 'hero_attacked', False):
+            if taunt_indices:
+                # TAUNT present: can only attack TAUNT minions
+                for defender_index in taunt_indices:
+                    actions.append(Action(
+                        type=ActionType.HERO_ATTACK,
+                        defender_index=defender_index
+                    ))
+            else:
+                # No TAUNT: can attack any enemy minion or face
+                for defender_index in range(len(opponent.board)):
+                    actions.append(Action(
+                        type=ActionType.HERO_ATTACK,
+                        defender_index=defender_index
+                    ))
+                # Attack enemy hero (face)
+                actions.append(Action(
+                    type=ActionType.HERO_ATTACK,
+                    defender_index=None
+                ))
+
+        # 5. End turn (always available)
         actions.append(Action(type=ActionType.END_TURN))
 
         return actions
