@@ -194,8 +194,8 @@ def attack(
             attacker.exhausted = True
 
         # Process deaths
-        process_deaths(attacker_player)
-        process_deaths(defender_player)
+        process_deaths(attacker_player, defender_player)
+        process_deaths(defender_player, attacker_player)
 
 
 def resolve_spell(player: Any, card: Any, opponent: Optional[Any] = None) -> None:
@@ -276,8 +276,8 @@ def hero_attack(
         minion = opponent.board[defender_index]
         minion.health -= weapon_attack
         player.take_damage(minion.attack)
-        # Remove dead minions
-        opponent.board = [m for m in opponent.board if m.health > 0]
+        # Process deaths (triggers deathrattles)
+        process_deaths(opponent, player)
 
     # Lose durability
     player.weapon.durability -= 1
@@ -285,6 +285,57 @@ def hero_attack(
         player.weapon = None
 
     player.hero_attacked = True
+
+
+def resolve_deathrattle(player: Any, minion: Any, opponent: Optional[Any] = None) -> None:
+    """Resolve a deathrattle effect based on minion's deathrattle_effect attribute.
+
+    Args:
+        player: The player who owned the dying minion
+        minion: The minion that died
+        opponent: The opponent player
+    """
+    effect = getattr(minion, 'deathrattle_effect', None)
+    if not effect:
+        return
+
+    kind = effect[0]
+
+    if kind == "deal_damage":
+        if opponent is not None:
+            opponent.take_damage(effect[1])
+
+    elif kind == "aoe_damage":
+        if opponent is not None:
+            for m in opponent.board:
+                m.health -= effect[1]
+            opponent.board = [m for m in opponent.board if m.health > 0]
+
+    elif kind == "draw":
+        for _ in range(effect[1]):
+            player.draw_card()
+
+    elif kind == "restore_health":
+        player.health = min(30, player.health + effect[1])
+
+    elif kind == "gain_armor":
+        player.armor += effect[1]
+
+    elif kind == "destroy":
+        if opponent is not None and opponent.board:
+            opponent.board.pop(0)
+
+    elif kind == "summon":
+        from hearthstone.cards.base import MinionCard as _MC
+        if len(player.board) < 7:
+            token = _MC(name="Token", mana_cost=0, attack=effect[1], health=effect[2])
+            token.summoning_sick = True
+            player.board.append(token)
+
+    elif kind == "buff_all":
+        for m in player.board:
+            m.attack += effect[1]
+            m.health += effect[2]
 
 
 def resolve_battlecry(player: Any, card: Any, opponent: Optional[Any] = None) -> None:

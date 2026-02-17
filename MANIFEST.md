@@ -2,7 +2,7 @@
 
 Tracks every file in the project, its current status, and development phase.
 
-**Project Status:** 1192 passing tests | Phases 1-9 ✅ Complete | Roadmap Items 1-7 ✅ Complete
+**Project Status:** 1227 passing tests | Phases 1-9 ✅ Complete | Roadmap Items 1-7 ✅ Complete | Deathrattle System ✅ Complete
 
 **Status legend:**
 - `ACTIVE` — Contains real, tested code
@@ -37,10 +37,11 @@ Tracks every file in the project, its current status, and development phase.
 | `tests/cards/test_base.py` | ACTIVE | 11 tests: card creation, Divine Shield property |
 | `tests/cards/test_effects.py` | ACTIVE | 5 tests: Battlecry, Deathrattle registries |
 | `tests/cards/test_keywords.py` | ACTIVE | 30 tests: all keyword mechanics (169 total tests in Phase 1+2) |
-| `hearthstone/cards/battlecries.py` | ACTIVE | Card text parsers: battlecry (6 patterns) + spell (7 patterns) |
+| `hearthstone/cards/battlecries.py` | ACTIVE | Card text parsers: battlecry (6 patterns) + spell (7 patterns) + deathrattle (8 patterns) |
 | `tests/cards/test_battlecries.py` | ACTIVE | 29 tests: battlecry text parser, effect resolver, play_card integration |
 | `tests/cards/test_spells.py` | ACTIVE | 32 tests: spell text parser, effect resolver, deck building integration |
 | `tests/engine/test_weapons.py` | ACTIVE | 26 tests: weapon equip, hero attack, durability, action space, deck building |
+| `tests/engine/test_deathrattle_system.py` | ACTIVE | 35 tests: deathrattle text parser (8 patterns), effect resolver, process_deaths integration, deck building, agent valuation |
 
 ## Phase 3 — Action Space, Simulation Interface, Basic Agents ✅ COMPLETE
 

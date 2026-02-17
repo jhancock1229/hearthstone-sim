@@ -25,6 +25,7 @@ class CardSpec:
     battlecry_effect: tuple | None = None
     card_type: str = "MINION"
     spell_effect: tuple | None = None
+    deathrattle_effect: tuple | None = None
 
 
 # Small synthetic pool used for initial experiments. Replace with
@@ -82,6 +83,8 @@ def build_concrete_deck(genotype: List[str], pool: Dict[str, CardSpec] = CARD_PO
                 card.mechanics.extend(list(spec.mechanics))
             if spec.battlecry_effect is not None:
                 card.battlecry_effect = spec.battlecry_effect
+            if spec.deathrattle_effect is not None:
+                card.deathrattle_effect = spec.deathrattle_effect
         out.append(card)
     # Shuffle deck top/bottom so draw order varies
     rng.shuffle(out)
@@ -95,7 +98,7 @@ def validate_deck(genotype: List[str], pool: Dict[str, CardSpec] = CARD_POOL, si
 # Mechanics fully supported by the engine (combat.py / actions.py)
 SUPPORTED_MECHANICS = frozenset({
     "TAUNT", "DIVINE_SHIELD", "LIFESTEAL", "CHARGE",
-    "RUSH", "POISONOUS", "WINDFURY", "BATTLECRY",
+    "RUSH", "POISONOUS", "WINDFURY", "BATTLECRY", "DEATHRATTLE",
 })
 
 
@@ -120,7 +123,7 @@ def build_pool_from_registry(
         Dict mapping card ID to CardSpec
     """
     from hearthstone.enums import CardType
-    from hearthstone.cards.battlecries import parse_battlecry_text, parse_spell_text
+    from hearthstone.cards.battlecries import parse_battlecry_text, parse_spell_text, parse_deathrattle_text
 
     pool: Dict[str, CardSpec] = {}
 
@@ -139,6 +142,10 @@ def build_pool_from_registry(
             card_text = getattr(card, 'text', None)
             if "BATTLECRY" in card_mechs and card_text:
                 bc_effect = parse_battlecry_text(card_text)
+            # Parse deathrattle text if card has DEATHRATTLE mechanic
+            dr_effect = None
+            if "DEATHRATTLE" in card_mechs and card_text:
+                dr_effect = parse_deathrattle_text(card_text)
             pool[card.id] = CardSpec(
                 name=card.name,
                 mana_cost=card.mana_cost,
@@ -150,6 +157,7 @@ def build_pool_from_registry(
                 card_set=cs,
                 text=card_text,
                 battlecry_effect=bc_effect,
+                deathrattle_effect=dr_effect,
             )
 
     # Include spells with recognized effects

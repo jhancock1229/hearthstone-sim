@@ -154,6 +154,11 @@ class EnhancedGreedyAgent(Agent):
         if bc:
             value += self._evaluate_effect(bc, obs) * 0.8
 
+        # Deathrattle value (discounted: delayed effect)
+        dr = getattr(card, 'deathrattle_effect', None)
+        if dr:
+            value += self._evaluate_effect(dr, obs) * 0.5
+
         return value
 
     def _evaluate_play_spell(self, card, obs: Observation) -> float:

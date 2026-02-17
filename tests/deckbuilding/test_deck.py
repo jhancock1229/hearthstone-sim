@@ -448,9 +448,9 @@ class TestBuildPoolFromRegistry:
         assert len(pool) > 500
 
     def test_excludes_unsupported_mechanics_on_minions(self, registry):
-        """Minions with DEATHRATTLE, DISCOVER etc. are excluded."""
+        """Minions with DISCOVER, SECRET etc. are excluded."""
         pool = build_pool_from_registry(registry)
-        unsupported = {"DEATHRATTLE", "DISCOVER", "SECRET"}
+        unsupported = {"DISCOVER", "SECRET"}
         for spec in pool.values():
             if spec.card_type == "MINION" and spec.mechanics:
                 card_mechs = set(spec.mechanics)

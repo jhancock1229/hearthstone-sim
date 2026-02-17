@@ -132,8 +132,8 @@ def resolve_minion_attack(attacker_player, attacker_idx, defender_player, defend
 	else:
 		defender_overkill = max(0, attacker.attack - defender_orig_health) if attacker.attack > 0 else 0
 	# Remove dead minions
-	process_deaths(attacker_player)
-	process_deaths(defender_player)
+	process_deaths(attacker_player, defender_player)
+	process_deaths(defender_player, attacker_player)
 	return attacker_overkill, defender_overkill
 
 def resolve_minion_attack_hero(attacker_player, attacker_idx, defender_player):
@@ -204,10 +204,14 @@ def resolve_minion_attack_hero(attacker_player, attacker_idx, defender_player):
 
 	return overkill
 
-def process_deaths(player):
+def process_deaths(player, opponent=None):
 	"""Remove all minions from the board with health <= 0.
 
 	Emits `on_death` for each removed minion before removal.
+
+	Args:
+		player: The player whose board to check for dead minions
+		opponent: The opponent player (needed for deathrattle effects)
 	"""
 	dead = [m for m in player.board if m.health <= 0]
 	for m in dead:
@@ -216,6 +220,12 @@ def process_deaths(player):
 		try:
 			from hearthstone.cards import effects
 			effects.trigger_deathrattle(player, m)
+		except Exception:
+			pass
+		# Resolve data-driven deathrattle effect
+		try:
+			from hearthstone.engine.actions import resolve_deathrattle
+			resolve_deathrattle(player, m, opponent)
 		except Exception:
 			pass
 		# If the minion has a deathrattle mechanic, emit that specific event

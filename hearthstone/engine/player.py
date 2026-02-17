@@ -3,9 +3,9 @@
 
 
 class Player:
-    def process_deaths(self):
+    def process_deaths(self, opponent=None):
         from hearthstone.engine.combat import process_deaths
-        process_deaths(self)
+        process_deaths(self, opponent)
 
 
     def attack_hero(self, attacker_idx, opponent):
